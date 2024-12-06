@@ -6,6 +6,7 @@ from sklearn.metrics import roc_auc_score, roc_curve
 import numpy as np
 import networkx as nx
 import os
+from sklearn.metrics import f1_score, accuracy_score
 
 class LinkPredictionDataset(Dataset):
     def __init__(self, file_path):
@@ -116,6 +117,20 @@ def evaluate(model, dataloader, adj_matrix, node_features):
     best_threshold = thresholds[np.argmax(tpr - fpr)]
     return auc, best_threshold
 
+def evaluate_with_best_threshold(model, dataloader, adj_matrix, node_features, threshold):
+    model.eval()
+    labels, preds = [], []
+    with torch.no_grad():
+        for node1, node2, label in dataloader:
+            node1, node2, label = node1.long(), node2.long(), label.float()
+            output = model(node_features, adj_matrix)
+            scores = (output[node1] + output[node2]) / 2
+            labels.extend(label.tolist())
+            preds.extend(scores.squeeze().tolist())
+    # 转为二值化结果
+    preds_binary = [1 if p >= threshold else 0 for p in preds]
+    return labels, preds, preds_binary
+
 def training_model(train_file, val_file, test_file, full_file, epochs=50, save_model=False, model_path="best_model.pth"):
     # 加载图
     full_graph, train_graph, val_graph, test_graph, train_edges, train_labels, val_edges, val_labels, test_edges, test_labels = load_graphs(
@@ -142,7 +157,7 @@ def training_model(train_file, val_file, test_file, full_file, epochs=50, save_m
     best_auc = 0
     best_epoch = 0
     best_threshold = 0
-
+    print("Training Started")
     # 训练和验证
     for epoch in range(epochs):
         train_loss = train(model, optimizer, criterion, train_loader, train_adj, train_features)
@@ -163,8 +178,17 @@ def training_model(train_file, val_file, test_file, full_file, epochs=50, save_m
     if save_model:
         model.load_state_dict(torch.load(model_path))
 
-    test_auc, _ = evaluate(model, test_loader, test_adj, test_features)
+    test_labels, test_preds, test_preds_binary = evaluate_with_best_threshold(
+        model, test_loader, test_adj, test_features, best_threshold)
+
+    test_auc = roc_auc_score(test_labels, test_preds)
+
+    test_accuracy = accuracy_score(test_labels, test_preds_binary)
+    test_f1 = f1_score(test_labels, test_preds_binary)
+
     print(f"Test AUC: {test_auc:.4f}")
+    print(f"Test Accuracy: {test_accuracy:.4f}")
+    print(f"Test F1 Score: {test_f1:.4f}")
 
 if __name__ == "__main__":
     current_dir = os.getcwd()
