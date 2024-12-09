@@ -7,6 +7,17 @@ import numpy as np
 import networkx as nx
 import os
 from sklearn.metrics import f1_score, accuracy_score
+import random
+
+def set_random_seed(seed):
+    np.random.seed(seed)  # 设置 numpy 随机数种子
+    random.seed(seed)  # 设置 Python random 模块的随机数种子
+    torch.manual_seed(seed)  # 设置 PyTorch 的随机数种子
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)  # 设置 CUDA 随机数种子
+        torch.cuda.manual_seed_all(seed)  # 设置所有 GPU 的随机数种子
+        torch.backends.cudnn.deterministic = True  # 确保 CUDA 算法确定性
+        torch.backends.cudnn.benchmark = False  # 禁用优化以保证可复现性
 
 class LinkPredictionDataset(Dataset):
     def __init__(self, file_path):
@@ -143,12 +154,10 @@ def training_model(train_file, val_file, test_file, full_file, epochs=50, save_m
     train_adj, train_features = generate_graph_data(train_graph, full_graph, input_dim)
     val_adj, val_features = generate_graph_data(val_graph, full_graph, input_dim)
     test_adj, test_features = generate_graph_data(test_graph, full_graph, input_dim)
-    print("Graphs Generated")
     # 数据加载器
     train_loader = DataLoader(LinkPredictionDataset(train_file), batch_size=32, shuffle=True)
     val_loader = DataLoader(LinkPredictionDataset(val_file), batch_size=32, shuffle=False)
     test_loader = DataLoader(LinkPredictionDataset(test_file), batch_size=32, shuffle=False)
-    print("Data Loaded")
     # 模型、优化器和损失函数
     model = GCNModel(input_dim, hidden_dim)
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
@@ -157,13 +166,12 @@ def training_model(train_file, val_file, test_file, full_file, epochs=50, save_m
     best_auc = 0
     best_epoch = 0
     best_threshold = 0
-    print("Training Started")
     # 训练和验证
     for epoch in range(epochs):
         train_loss = train(model, optimizer, criterion, train_loader, train_adj, train_features)
         val_auc, threshold = evaluate(model, val_loader, val_adj, val_features)
 
-        print(f"Epoch {epoch + 1}/{epochs}, Train Loss: {train_loss:.4f}, Val AUC: {val_auc:.4f}")
+        # print(f"Epoch {epoch + 1}/{epochs}, Train Loss: {train_loss:.4f}, Val AUC: {val_auc:.4f}")
 
         if val_auc > best_auc:
             best_auc = val_auc
@@ -189,20 +197,38 @@ def training_model(train_file, val_file, test_file, full_file, epochs=50, save_m
     print(f"Test AUC: {test_auc:.4f}")
     print(f"Test Accuracy: {test_accuracy:.4f}")
     print(f"Test F1 Score: {test_f1:.4f}")
+    return test_auc, test_accuracy, test_f1
 
-if __name__ == "__main__":
-    current_dir = os.getcwd()
+def GNN_model_Training(filename, epochs = 3, seed=1):
 
-    # 切换到上两层目录
-    new_dir = os.path.abspath(os.path.join(current_dir, "../../"))
-    os.chdir(new_dir)
-    print("Current working directory:", os.getcwd())
+    set_random_seed(seed)
 
-    filename = 'facebook'
     train_file = f"processing_data/{filename}/train.txt"
     val_file = f"processing_data/{filename}/val.txt"
     test_file = f"processing_data/{filename}/test.txt"
     full_file = f"original_graphs/{filename}.txt"
 
+    auc, acc, fi = training_model(train_file, val_file, test_file, full_file, epochs = epochs, save_model=False,
+                   model_path="best_gcn_model.pth")
 
-    training_model(train_file, val_file, test_file, full_file, epochs=10, save_model=True, model_path="best_gcn_model.pth")
+    set_random_seed(seed)
+
+    train_file_i = f"processing_data/{filename}/train_i.txt"
+    val_file_i = f"processing_data/{filename}/val_i.txt"
+    test_file_i = f"processing_data/{filename}/test_i.txt"
+    full_file = f"original_graphs/{filename}.txt"
+
+    auc_i, acc_i ,fi_i = training_model(train_file_i, val_file_i, test_file_i, full_file, epochs = epochs, save_model=False,
+                   model_path="best_gcn_model_i.pth")
+
+    return auc, acc, fi, auc_i, acc_i, fi_i
+
+if __name__ == "__main__":
+    current_dir = os.getcwd()
+
+    new_dir = os.path.abspath(os.path.join(current_dir, "../../"))
+    os.chdir(new_dir)
+    print("Current working directory:", os.getcwd())
+
+    filename = 'facebook'
+    GNN_model_Training(filename)
