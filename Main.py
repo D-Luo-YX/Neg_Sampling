@@ -75,7 +75,7 @@ seed = 1
 set_random_seed(seed)
 
 iteration = 10
-auc, acc, f1, auc_i, acc_i, f1_i, d_auc, d_acc, d_f1 = [[] for _ in range(9)]
+# auc, acc, f1, auc_i, acc_i, f1_i, d_auc, d_acc, d_f1 = [[] for _ in range(9)]
 # auc = 0
 # acc = 0
 # fi  = 0
@@ -88,6 +88,7 @@ files = ['PB','USAir_unweighted','Yeast','facebook']
 # filename = 'PB'
 for filename in files:
     Samples_Generated.file_processing(filename)
+    auc, acc, f1, auc_i, acc_i, f1_i, d_auc, d_acc, d_f1 = [[] for _ in range(9)]
     for i in range(iteration):
         a, b, c, a_i, b_i, c_i = GNN_model_Training(filename,epochs=10,seed=seed)
         auc.append(a)

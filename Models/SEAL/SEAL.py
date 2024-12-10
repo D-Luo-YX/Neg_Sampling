@@ -102,7 +102,7 @@ class DGCNN(nn.Module):
         if self.output_dim > 0:
             h = self.out_params(h)
 
-        return h
+        return h    
 
 # ===== SEAL Model =====
 class SEAL(nn.Module):

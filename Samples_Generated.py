@@ -177,9 +177,9 @@ def file_processing(file_path):
 
     t_i,v_i,p_i = generate_data_method_ideal(Original_graph,0.81,0.09,0.1,1.0)
 
-    save_data_to_file(t, f"processing_data/{filename}/train_i.txt")
-    save_data_to_file(v, f"processing_data/{filename}/val_i.txt")
-    save_data_to_file(p, f"processing_data/{filename}/test_i.txt")
+    save_data_to_file(t_i, f"processing_data/{filename}/train_i.txt")
+    save_data_to_file(v_i, f"processing_data/{filename}/val_i.txt")
+    save_data_to_file(p_i, f"processing_data/{filename}/test_i.txt")
 
     return print("Data Processing Complete")
 
