@@ -145,17 +145,57 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, global_sort_pool
 
+# class DGCNN(torch.nn.Module):
+#     def __init__(self, input_dim, hidden_dim, output_dim, num_layers, k=0.6):
+#         """
+#         DGCNN model for SEAL framework.
+#         Args:
+#             input_dim (int): Input feature dimension.
+#             hidden_dim (int): Hidden layer dimension.
+#             output_dim (int): Output feature dimension (usually 1 for binary classification).
+#             num_layers (int): Number of graph convolutional layers.
+#             k (float or int): SortPooling parameter (top-k nodes to retain).
+#         """
+#         super(DGCNN, self).__init__()
+#
+#         self.convs = nn.ModuleList()
+#         self.convs.append(GCNConv(input_dim, hidden_dim))
+#         for _ in range(num_layers - 1):
+#             self.convs.append(GCNConv(hidden_dim, hidden_dim))
+#
+#         self.k = k
+#         self.mlp_hidden = hidden_dim * num_layers
+#         self.conv1d = nn.Conv1d(1, 16, kernel_size=self.mlp_hidden, stride=self.mlp_hidden)
+#         self.pool = nn.MaxPool1d(kernel_size=2)
+#         self.fc1 = nn.Linear(16 * ((self.k // 2) if isinstance(self.k, int) else 1), 128)
+#         self.fc2 = nn.Linear(128, output_dim)
+#
+#     def forward(self, x, edge_index, batch):
+#         # Apply GCN layers
+#         xs = []
+#         for conv in self.convs:
+#             x = F.relu(conv(x, edge_index))
+#             xs.append(x)
+#
+#         # Concatenate features from all layers
+#         x = torch.cat(xs, dim=-1)
+#
+#         # Apply SortPooling
+#         x = global_sort_pool(x, batch, self.k)
+#
+#         # Reshape for Conv1d
+#         x = x.unsqueeze(1)  # Add channel dimension
+#         x = F.relu(self.conv1d(x))
+#         x = self.pool(x).view(x.size(0), -1)
+#
+#         # Apply fully connected layers
+#         x = F.relu(self.fc1(x))
+#         x = self.fc2(x)
+#
+#         return x
+
 class DGCNN(torch.nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers, k=0.6):
-        """
-        DGCNN model for SEAL framework.
-        Args:
-            input_dim (int): Input feature dimension.
-            hidden_dim (int): Hidden layer dimension.
-            output_dim (int): Output feature dimension (usually 1 for binary classification).
-            num_layers (int): Number of graph convolutional layers.
-            k (float or int): SortPooling parameter (top-k nodes to retain).
-        """
         super(DGCNN, self).__init__()
 
         self.convs = nn.ModuleList()
@@ -163,11 +203,18 @@ class DGCNN(torch.nn.Module):
         for _ in range(num_layers - 1):
             self.convs.append(GCNConv(hidden_dim, hidden_dim))
 
-        self.k = k
+        # Handle proportional k
+        if isinstance(k, float) and 0 < k < 1:
+            self.proportional_k = k
+            self.k = None  # Placeholder, compute later based on batch size
+        else:
+            self.proportional_k = None
+            self.k = int(k)
+
         self.mlp_hidden = hidden_dim * num_layers
         self.conv1d = nn.Conv1d(1, 16, kernel_size=self.mlp_hidden, stride=self.mlp_hidden)
         self.pool = nn.MaxPool1d(kernel_size=2)
-        self.fc1 = nn.Linear(16 * ((self.k // 2) if isinstance(self.k, int) else 1), 128)
+        self.fc1 = None  # Define dynamically
         self.fc2 = nn.Linear(128, output_dim)
 
     def forward(self, x, edge_index, batch):
@@ -180,6 +227,11 @@ class DGCNN(torch.nn.Module):
         # Concatenate features from all layers
         x = torch.cat(xs, dim=-1)
 
+        # Determine k dynamically if proportional_k is set
+        if self.proportional_k is not None:
+            num_nodes = torch.bincount(batch)
+            self.k = int(num_nodes.float().mean().item() * self.proportional_k)
+
         # Apply SortPooling
         x = global_sort_pool(x, batch, self.k)
 
@@ -187,6 +239,10 @@ class DGCNN(torch.nn.Module):
         x = x.unsqueeze(1)  # Add channel dimension
         x = F.relu(self.conv1d(x))
         x = self.pool(x).view(x.size(0), -1)
+
+        # Dynamically define fc1 if needed
+        if self.fc1 is None or self.fc1.in_features != x.size(1):
+            self.fc1 = nn.Linear(x.size(1), 128).to(x.device)
 
         # Apply fully connected layers
         x = F.relu(self.fc1(x))
@@ -245,11 +301,11 @@ if __name__ == '__main__':
 
     # Hyperparameters
     num_hops = 2
-    node_feature_dim = 5
+    node_feature_dim = 8
     hidden_dim = 64
     output_dim = 1
     num_layers = 3
-    k = 30
+    k = 0.5
     batch_size = 32
     num_epochs = 10
     learning_rate = 0.001
