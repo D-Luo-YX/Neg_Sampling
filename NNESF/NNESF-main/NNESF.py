@@ -146,10 +146,10 @@ if __name__=='__main__':
     p = 0.1
     n_loops = 10
     random_seed = 1
-    dataset = ['USAir.mat','NS.mat','PB.mat','Yeast.mat','Celegans.mat',
-               'Power.mat','Router.mat','Ecoli.mat','facebook.mat','Wiki-Vote.mat']#
+    # dataset = ['Wiki-Vote.mat', 'USAir.mat','NS.mat','PB.mat','Yeast.mat','Celegans.mat',
+    #            'Power.mat','Router.mat','Ecoli.mat','facebook.mat']#
     # dataset = ['facebook.mat']
-    # dataset = ['USAir.mat','PB.mat']
+    dataset = ['USAir.mat','PB.mat']
     auc_ideal = np.zeros((len(dataset),n_loops))
     auc_not_ideal = np.zeros((len(dataset),n_loops))
     pool = mp.Pool()#processes=5
