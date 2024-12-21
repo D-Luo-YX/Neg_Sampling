@@ -70,37 +70,37 @@ def ploted(auc, acc, f1):
 
     plt.grid(axis='y', linestyle='--', alpha=0.7)
     plt.show()
+if __name__ == '__main__':
 
-seed = 1
-set_random_seed(seed)
+    iteration = 10
+    # auc, acc, f1, auc_i, acc_i, f1_i, d_auc, d_acc, d_f1 = [[] for _ in range(9)]
+    # auc = 0
+    # acc = 0
+    # fi  = 0
+    # auc_i = 0
+    # acc_i = 0
+    # fi_i = 0
 
-iteration = 10
-# auc, acc, f1, auc_i, acc_i, f1_i, d_auc, d_acc, d_f1 = [[] for _ in range(9)]
-# auc = 0
-# acc = 0
-# fi  = 0
-# auc_i = 0
-# acc_i = 0
-# fi_i = 0
-
-# filename = 'USAir_unweighted'
-files = ['PB','USAir_unweighted','Yeast','facebook']
-# filename = 'PB'
-for filename in files:
-    Samples_Generated.file_processing(filename)
-    auc, acc, f1, auc_i, acc_i, f1_i, d_auc, d_acc, d_f1 = [[] for _ in range(9)]
-    for i in range(iteration):
-        a, b, c, a_i, b_i, c_i = GNN_model_Training(filename,epochs=10,seed=seed)
-        auc.append(a)
-        acc.append(b)
-        f1.append(c)
-        auc_i.append(a_i)
-        acc_i.append(b_i)
-        f1_i.append(c_i)
-        d_auc.append((a_i-a))
-        d_acc.append((b_i-b))
-        d_f1.append((c_i-c))
+    # filename = 'USAir_unweighted'
+    # files = ['PB','USAir_unweighted','Yeast','facebook']
+    files = ['USAir_unweighted']
+    for filename in files:
+        seed = 1
+        Samples_Generated.file_processing(filename,theta=0.005)
+        auc, acc, f1, auc_i, acc_i, f1_i, d_auc, d_acc, d_f1 = [[] for _ in range(9)]
+        for i in range(iteration):
+            a, b, c, a_i, b_i, c_i = GNN_model_Training(filename,epochs=10,seed=seed)
+            auc.append(a)
+            acc.append(b)
+            f1.append(c)
+            auc_i.append(a_i)
+            acc_i.append(b_i)
+            f1_i.append(c_i)
+            d_auc.append((a_i-a))
+            d_acc.append((b_i-b))
+            d_f1.append((c_i-c))
+            seed += 1
+        output_file = f'result/GNN/{filename}_result.txt'
+        save_data_to_txt(output_file, auc, acc, f1, auc_i, acc_i, f1_i, d_auc, d_acc, d_f1)
         seed += 1
-    output_file = f'result/GNN/{filename}_ori_result.txt'
-    save_data_to_txt(output_file, auc, acc, f1, auc_i, acc_i, f1_i, d_auc, d_acc, d_f1)
 
