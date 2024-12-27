@@ -142,8 +142,25 @@ def generate_data_method_ideal(G, train_ratio, validation_ratio, test_ratio, neg
 
     return pos_train_edges, pos_val_edges, pos_test_edges, neg_train, neg_val, neg_test
 
+def calculate_overlap_expectation(g1, g2, p, r):
+    # 获取 g1 和 g2 的顶点数和边数
+    n0 = g1.number_of_nodes()
+    e0 = g1.number_of_edges()
+    n1 = g2.number_of_nodes()
+    e1 = g2.number_of_edges()
 
-def generate_data_method_not_ideal(pos_train_edges, pos_val_edges, pos_test_edges, neg_train, neg_val, neg_test, theta=0.001, seed=None):
+    e0_term = (1 - p) * e0
+    fraction = (1 - p) * e0 * (n1 * (n1 - 1)) / (n0 * (n0 - 1))
+    denominator = 0.5 * n1 * (n1 - 1) - e1
+
+    if denominator == 0:
+        raise ValueError("Denominator in the formula is zero, cannot compute expectation.")
+
+    expectation = r * e0_term * (fraction / denominator)
+
+    return expectation
+
+def generate_data_method_not_ideal(pos_train_edges, pos_val_edges, pos_test_edges, neg_train, neg_val, neg_test, overlap = 10, seed=None):
     """
     Replace a portion of neg_train with edges from pos_test_edges.
 
@@ -165,7 +182,7 @@ def generate_data_method_not_ideal(pos_train_edges, pos_val_edges, pos_test_edge
         np.random.seed(seed)
 
     # Determine the number of edges to replace
-    num_replace = int(theta * len(pos_test_edges))
+    num_replace = overlap
 
     if num_replace > len(neg_train):
         raise ValueError("Replacement size exceeds the size of neg_train.")
@@ -213,6 +230,7 @@ def save_data_to_file(data, file_path):
     with open(file_path, 'w') as file:
         for u, v, label in data:
             file.write(f"{u} {v} {label}\n")
+
 def check_datasets_consistency(dataset1, dataset2):
     """
     Check if two datasets are consistent (contain the same edges).
@@ -234,7 +252,7 @@ def check_datasets_consistency(dataset1, dataset2):
         differences = set1.symmetric_difference(set2)
         return False, differences
 
-def file_processing(file_path,theta = 0.001,random_seed=1):
+def file_processing(file_path,theta = 1,random_seed=1):
 
     filename = file_path
     Original_graph = load_graph_from_txt(f"original_graphs/{filename}.txt")
@@ -246,7 +264,7 @@ def file_processing(file_path,theta = 0.001,random_seed=1):
     save_data_to_file(v_i, f"processing_data/{filename}/val_i.txt")
     save_data_to_file(p_i, f"processing_data/{filename}/test_i.txt")
 
-    pt,pv,pp,nt,nv,np = generate_data_method_not_ideal(pt_i,pv_i,pp_i,nt_i,nv_i,np_i,theta=theta,seed=random_seed)
+    pt,pv,pp,nt,nv,np = generate_data_method_not_ideal(pt_i,pv_i,pp_i,nt_i,nv_i,np_i,overlap=theta,seed=random_seed)
     t, v, p = combining_dataset(pt,pv,pp,nt,nv,np)
     print(check_datasets_consistency(t_i,t))
     save_data_to_file(t, f"processing_data/{filename}/train.txt")
